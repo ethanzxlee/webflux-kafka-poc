@@ -23,6 +23,8 @@ import java.util.UUID;
 public class DocumentController {
     @Value("${documents.topic}")
     private String documentsTopic;
+    @Value("${documents.reply-timeout}")
+    private long replyTimeout;
 
     private FilteringReplyingKafkaTemplate<String, Document, Document> kafkaTemplate;
 
@@ -31,18 +33,24 @@ public class DocumentController {
     }
 
     @PostMapping(value = "/documents")
-    public ResponseEntity<Mono<Document>> postDocument(@RequestBody Document document) {
-        var uuid = UUID.randomUUID();
-        document.setCreated(LocalDateTime.now().toString());
-        Mono<Document> documentMono = Mono
-                .just(document)
-                .flatMap(doc -> {
-                    ProducerRecord<String, Document> producerRecord = new ProducerRecord<>(documentsTopic, uuid.toString(), doc);
-                    producerRecord.headers().add(new RecordHeader(KafkaHeaders.REPLY_TOPIC, documentsTopic.getBytes()));
-                    return Mono.fromFuture(kafkaTemplate.sendAndReceive(producerRecord).completable());
-                })
-                .map(ConsumerRecord::value);
+    public ResponseEntity<Mono<Document>> postDocument(@RequestBody Mono<Document> document) {
+        Mono<Document> documentMono = document
+            .map(this::setCreated)
+            .flatMap(this::sendAndReceive)
+            .map(ConsumerRecord::value);
         return new ResponseEntity<>(documentMono, HttpStatus.OK);
+    }
+
+    private Document setCreated(Document document) {
+        document.setCreated(LocalDateTime.now().toString());
+        document.setTimeoutEpoch(System.currentTimeMillis() + replyTimeout);
+        return document;
+    }
+
+    private Mono<? extends ConsumerRecord<String, Document>> sendAndReceive(Document doc) {
+        ProducerRecord<String, Document> producerRecord = new ProducerRecord<>(documentsTopic, UUID.randomUUID().toString(), doc);
+        producerRecord.headers().add(new RecordHeader(KafkaHeaders.REPLY_TOPIC, documentsTopic.getBytes()));
+        return Mono.fromFuture(kafkaTemplate.sendAndReceive(producerRecord).completable());
     }
 
 }

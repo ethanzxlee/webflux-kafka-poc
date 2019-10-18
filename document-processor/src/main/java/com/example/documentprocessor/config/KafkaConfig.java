@@ -3,6 +3,7 @@ package com.example.documentprocessor.config;
 import com.example.documentprocessor.model.Document;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -74,8 +75,14 @@ public class KafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, Document> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setReplyTemplate(kafkaTemplate());
-        factory.setRecordFilterStrategy(record -> !record.value().getStatus().equals("PENDING"));
+        factory.setRecordFilterStrategy(this::filterRecord);
         return factory;
+    }
+
+    private boolean filterRecord(ConsumerRecord<String, Document> record) {
+        boolean statusPending = record.value().getStatus().equals("PENDING");
+        boolean timeoutExceeded = System.currentTimeMillis() > record.value().getTimeoutEpoch();
+        return !statusPending && timeoutExceeded;
     }
 
 }

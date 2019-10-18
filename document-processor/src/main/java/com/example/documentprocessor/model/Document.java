@@ -6,10 +6,11 @@ import lombok.Data;
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Document {
-    public String id;
-    public String title;
-    public String content;
-    public String lastModified;
-    public String created;
-    public String status;
+    private String id;
+    private String title;
+    private String content;
+    private String lastModified;
+    private String created;
+    private long timeoutEpoch;
+    private String status;
 }
