@@ -1,6 +1,6 @@
-package com.example.documentprocessor.processor;
+package com.example.documentprocessor1.processor;
 
-import com.example.documentprocessor.model.Document;
+import com.example.documentprocessor1.model.Document;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -13,12 +13,11 @@ import java.time.LocalDateTime;
 public class DocumentProcessor {
     @KafkaListener(topics = "${documents.topic}")
     @SendTo
-    public Document process(Document document) throws InterruptedException {
+    public Document process(Document document) {
         log.info("RECEIVED: " + document.toString());
-        Thread.sleep(5000);
-        document.setStatus("STEP-0-DONE");
-        document.setContent(document.getContent() + "(processor)");
+        document.setStatus("DONE");
         document.setLastModified(LocalDateTime.now().toString());
+        document.setContent(document.getContent() + "(processor1)");
         return document;
     }
 }

@@ -1,6 +1,6 @@
-package com.example.documentprocessor.config;
+package com.example.documentprocessor1.config;
 
-import com.example.documentprocessor.model.Document;
+import com.example.documentprocessor1.model.Document;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -80,12 +80,12 @@ public class KafkaConfig {
     }
 
     private boolean filterRecord(ConsumerRecord<String, Document> record) {
-        boolean statusPending = record.value().getStatus().equals("PENDING");
+        boolean statusStep0Done = record.value().getStatus().equals("STEP-0-DONE");
         boolean timeoutExceeded = System.currentTimeMillis() > record.value().getTimeoutEpoch();
         if (timeoutExceeded) {
-            log.info("TIMEOUT:" + record.value());
+            log.info("TIMEOUT: " + record.value());
         }
-        return !statusPending || timeoutExceeded;
+        return !statusStep0Done || timeoutExceeded;
     }
 
 }
