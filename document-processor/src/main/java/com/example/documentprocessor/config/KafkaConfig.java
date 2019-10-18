@@ -2,6 +2,7 @@ package com.example.documentprocessor.config;
 
 import com.example.documentprocessor.model.Document;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -80,12 +81,14 @@ public class KafkaConfig {
     }
 
     private boolean filterRecord(ConsumerRecord<String, Document> record) {
-        boolean statusPending = record.value().getStatus().equals("PENDING");
+        boolean pendingStatus = StringUtils.equals(record.value().getStatus(), "PENDING");
+        boolean errorStatus = StringUtils.equals(record.value().getStatus(), "ERROR");
         boolean timeoutExceeded = System.currentTimeMillis() > record.value().getTimeoutEpoch();
-        if (timeoutExceeded) {
+        if (pendingStatus && timeoutExceeded) {
             log.info("TIMEOUT:" + record.value());
         }
-        return !statusPending || timeoutExceeded;
+
+        return !errorStatus && (!pendingStatus || timeoutExceeded);
     }
 
 }

@@ -2,6 +2,7 @@ package com.example.documentprocessor1.config;
 
 import com.example.documentprocessor1.model.Document;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -80,12 +81,14 @@ public class KafkaConfig {
     }
 
     private boolean filterRecord(ConsumerRecord<String, Document> record) {
-        boolean statusStep0Done = record.value().getStatus().equals("STEP-0-DONE");
+        boolean step0Status = StringUtils.equals(record.value().getStatus(), "STEP-0-DONE");
+        boolean errorStatus = StringUtils.equals(record.value().getStatus(), "ERROR");
         boolean timeoutExceeded = System.currentTimeMillis() > record.value().getTimeoutEpoch();
-        if (timeoutExceeded) {
-            log.info("TIMEOUT: " + record.value());
+        if (step0Status && timeoutExceeded) {
+            log.info("TIMEOUT:" + record.value());
         }
-        return !statusStep0Done || timeoutExceeded;
+
+        return !errorStatus && (!step0Status || timeoutExceeded);
     }
 
 }
