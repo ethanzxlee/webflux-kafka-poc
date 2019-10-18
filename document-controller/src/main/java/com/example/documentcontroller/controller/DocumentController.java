@@ -9,10 +9,10 @@ import org.apache.kafka.common.header.internals.RecordHeader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.requestreply.KafkaReplyTimeoutException;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
@@ -33,24 +33,38 @@ public class DocumentController {
     }
 
     @PostMapping(value = "/documents")
-    public ResponseEntity<Mono<Document>> postDocument(@RequestBody Mono<Document> document) {
-        Mono<Document> documentMono = document
-            .map(this::setCreated)
+    public ResponseEntity<Mono<Document>> postDocument(Document document) {
+        Mono<Document> documentMono = Mono.just(document)
+            .map(this::initDocument)
             .flatMap(this::sendAndReceive)
-            .map(ConsumerRecord::value);
+            .map(ConsumerRecord::value)
+            .onErrorMap(t -> sendErrorMessage(t, document));
+
         return new ResponseEntity<>(documentMono, HttpStatus.OK);
     }
 
-    private Document setCreated(Document document) {
+    private Document initDocument(Document document) {
         document.setCreated(LocalDateTime.now().toString());
         document.setTimeoutEpoch(System.currentTimeMillis() + replyTimeout);
+        document.setId(UUID.randomUUID().toString());
         return document;
     }
 
     private Mono<? extends ConsumerRecord<String, Document>> sendAndReceive(Document doc) {
-        ProducerRecord<String, Document> producerRecord = new ProducerRecord<>(documentsTopic, UUID.randomUUID().toString(), doc);
+        ProducerRecord<String, Document> producerRecord = new ProducerRecord<>(documentsTopic, doc.getId(), doc);
         producerRecord.headers().add(new RecordHeader(KafkaHeaders.REPLY_TOPIC, documentsTopic.getBytes()));
         return Mono.fromFuture(kafkaTemplate.sendAndReceive(producerRecord).completable());
+    }
+
+    private Throwable sendErrorMessage(Throwable throwable, Document document) {
+        document.setStatus("ERROR");
+
+        if (throwable instanceof KafkaReplyTimeoutException) {
+            ProducerRecord<String, Document> producerRecord = new ProducerRecord<>(documentsTopic, document.getId(), document);
+            producerRecord.headers().add(new RecordHeader(KafkaHeaders.REPLY_TOPIC, documentsTopic.getBytes()));
+        }
+
+        return throwable;
     }
 
 }
