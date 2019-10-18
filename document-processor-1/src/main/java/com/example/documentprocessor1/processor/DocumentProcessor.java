@@ -18,16 +18,21 @@ public class DocumentProcessor {
     @KafkaListener(topics = "${documents.topic}")
     @SendTo("${documents.topic}")
     public Document process(Document document) {
-        log.info("RECEIVED: " + document.toString());
 
-        if (processedDocs.contains(document.getId()) && StringUtils.equals(document.getStatus(), "ERROR")) {
-            log.error("ERROR: rolling back " + document);
+        if (StringUtils.equals(document.getStatus(), "ERROR")) {
+            log.info("RECEIVED ERROR MESSAGE: " + document.toString());
+            if (processedDocs.contains(document.getId())) {
+                log.error("ROLLING BACK: " + document);
+            }
             return null;
         } else {
+
+            log.info("RECEIVED: " + document.toString());
             document.setStatus("DONE");
             document.setLastModified(LocalDateTime.now().toString());
             document.setContent(document.getContent() + "(processor1)");
             processedDocs.add(document.getId());
+            log.info("PROCESSED: " + document.toString());
             return document;
         }
     }

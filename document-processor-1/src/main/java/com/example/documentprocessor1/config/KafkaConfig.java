@@ -85,7 +85,7 @@ public class KafkaConfig {
         boolean errorStatus = StringUtils.equals(record.value().getStatus(), "ERROR");
         boolean timeoutExceeded = System.currentTimeMillis() > record.value().getTimeoutEpoch();
         if (step0Status && timeoutExceeded) {
-            log.info("TIMEOUT:" + record.value());
+            log.info("RECEIVED TIMEOUT: " + record.value());
         }
 
         return !errorStatus && (!step0Status || timeoutExceeded);

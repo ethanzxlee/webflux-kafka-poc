@@ -19,17 +19,22 @@ public class DocumentProcessor {
     @KafkaListener(topics = "${documents.topic}")
     @SendTo("${documents.topic}")
     public Document process(Document document) throws InterruptedException {
-        log.info("RECEIVED: " + document.toString());
 
-        if (processedDocs.contains(document.getId()) && StringUtils.equals(document.getStatus(), "ERROR")) {
-            log.error("ERROR: rolling back " + document);
+
+        if (StringUtils.equals(document.getStatus(), "ERROR")) {
+            log.info("RECEIVED ERROR MESSAGE: " + document.toString());
+            if (processedDocs.contains(document.getId())) {
+                log.info("ROLLING BACK: " + document);
+            }
             return null;
         } else {
+            log.info("RECEIVED: " + document.toString());
             document.setStatus("STEP-0-DONE");
             document.setContent(document.getContent() + "(processor)");
             document.setLastModified(LocalDateTime.now().toString());
             processedDocs.add(document.getId());
-//            Thread.sleep(6000);
+            Thread.sleep(6000);
+            log.info("PROCESSED: " + document.toString());
             return document;
         }
     }
